@@ -17,6 +17,17 @@ static bool over;
 static bool win;
 static bool quit;
 static short empty;
+static struct aes_color_rgb colors[8] = {
+    {0, 0, 255},
+    {0, 128, 0},
+    {255, 0, 0},
+    {0, 0, 128},
+    {128, 0, 0},
+    {0, 128, 128},
+    {128, 128, 0},
+    {128, 0, 128}
+};
+
 
 void init_grid(
     struct cell *grid[],
@@ -89,17 +100,18 @@ void draw_grid(
 {
     struct cell c;
     struct aes_pixel p_empty, p_mine, p_select, p_reveal;
-    struct aes_color_rgb black, grey, white, red, green;
+    struct aes_color_rgb black, light_grey, grey, white, red, green;
     short w, h;
 
     black = aes_make_color(0, 0, 0);
-    grey = aes_make_color(127, 127, 127);
+    grey = aes_make_color(192, 192, 192);
+    light_grey = aes_make_color(223, 223, 223);
     white = aes_make_color(255, 255, 255);
     red = aes_make_color(255, 0, 0);
     green = aes_make_color(0, 255, 0);
 
     p_empty.fg = white;
-    p_empty.bg = black;
+    p_empty.bg = light_grey;
 
     p_mine.c = '*';
     p_mine.fg = white;
@@ -107,7 +119,6 @@ void draw_grid(
     p_select.bg = white;
     p_select.fg = black;
 
-    p_reveal.fg = white;
     p_reveal.bg = grey;
 
     for (h = 0; h < height; h++) {
@@ -126,8 +137,10 @@ void draw_grid(
                 } else {
                     if (c.n_adj_mines) {
                         p_reveal.c = '0' + c.n_adj_mines;
+                        p_reveal.fg = colors[c.n_adj_mines - 1];
                     } else {
                         p_reveal.c = ' ';
+                        p_reveal.fg = white;
                     }
 
                     aes_set_pixel(w, h, p_reveal, buffer);
@@ -144,6 +157,7 @@ void draw_grid(
 
             if (w == select.x && h == select.y && !over) {
                 p_select.c = buffer->pixels[width * select.y + select.x].c;
+                p_select.fg = buffer->pixels[width * select.y + select.x].fg;
                 aes_set_pixel(w, h, p_select, buffer);
             }
         }
