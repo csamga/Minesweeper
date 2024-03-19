@@ -130,8 +130,7 @@ void draw_grid(
 
                     aes_set_pixel(w, h, p_reveal, buffer);
                 }
-            }
-            else {
+            } else {
                 aes_set_pixel(w, h, p_empty, buffer);
             }
 
