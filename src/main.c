@@ -7,8 +7,9 @@
 
 struct cell {
     bool is_mine;
-    bool reveal;
-    short adj_mines;
+    bool revealed;
+    bool marked;
+    short n_adj_mines;
     short x, y;
 };
 
@@ -32,8 +33,9 @@ void init_grid(
     for (y = 0; y < height; y++) {
         for (x = 0; x < width; x++) {
             c.is_mine = false;
-            c.reveal = false;
-            c.adj_mines = 0;
+            c.marked = false;
+            c.revealed = false;
+            c.n_adj_mines = 0;
             c.x = x;
             c.y = y;
 
@@ -70,7 +72,7 @@ void init_grid(
                     (i != 0 || j != 0))
                 {
                     if (!grid[adj_y][adj_x].is_mine) {
-                        grid[adj_y][adj_x].adj_mines++;
+                        grid[adj_y][adj_x].n_adj_mines++;
                     }
                 }
             }
@@ -96,7 +98,7 @@ void draw_grid(
     red = aes_make_color(255, 0, 0);
     green = aes_make_color(0, 255, 0);
 
-    p_empty.c = ' ';
+    p_empty.fg = white;
     p_empty.bg = black;
 
     p_mine.c = '*';
@@ -112,7 +114,7 @@ void draw_grid(
         for (w = 0; w < width; w++) {
             c = grid[h][w];
 
-            if (c.reveal) {
+            if (c.revealed) {
                 if (c.is_mine) {
                     if (win) {
                         p_mine.bg = green;
@@ -122,8 +124,8 @@ void draw_grid(
 
                     aes_set_pixel(w, h, p_mine, buffer);
                 } else {
-                    if (c.adj_mines) {
-                        p_reveal.c = '0' + c.adj_mines;
+                    if (c.n_adj_mines) {
+                        p_reveal.c = '0' + c.n_adj_mines;
                     } else {
                         p_reveal.c = ' ';
                     }
@@ -131,6 +133,12 @@ void draw_grid(
                     aes_set_pixel(w, h, p_reveal, buffer);
                 }
             } else {
+                if (c.marked) {
+                    p_empty.c = '!';
+                } else {
+                    p_empty.c = ' ';
+                }
+
                 aes_set_pixel(w, h, p_empty, buffer);
             }
 
@@ -153,28 +161,31 @@ void reveal_cell(
     short y,
     struct aes_buffer *buffer)
 {
-    if (grid[y][x].reveal) {
-        return;
-    } else if (grid[y][x].adj_mines > 0) {
-        grid[y][x].reveal = true;
-        empty--;
-
+    if (grid[y][x].revealed) {
         return;
     } else {
-        grid[y][x].reveal = true;
+        grid[y][x].revealed = true;
         empty--;
 
-        if (y < height - 1) {
-            reveal_cell(grid, width, height, x, y + 1, buffer);
+        if (grid[y][x].marked) {
+            grid[y][x].marked = false;
         }
-        if (x < width - 1) {
-            reveal_cell(grid, width, height, x + 1, y, buffer);
-        }
-        if (y > 0) {
-            reveal_cell(grid, width, height, x, y - 1, buffer);
-        }
-        if (x > 0) {
-            reveal_cell(grid, width, height, x - 1, y, buffer);
+
+        if (grid[y][x].n_adj_mines > 0) {
+            return;
+        } else {
+            if (y < height - 1) {
+                reveal_cell(grid, width, height, x, y + 1, buffer);
+            }
+            if (x < width - 1) {
+                reveal_cell(grid, width, height, x + 1, y, buffer);
+            }
+            if (y > 0) {
+                reveal_cell(grid, width, height, x, y - 1, buffer);
+            }
+            if (x > 0) {
+                reveal_cell(grid, width, height, x - 1, y, buffer);
+            }
         }
     }
 }
@@ -183,7 +194,7 @@ void reveal_mines(struct cell **mines, short n_mines) {
     short m;
 
     for (m = 0; m < n_mines; m++) {
-        mines[m]->reveal = true;
+        mines[m]->revealed = true;
     }
 }
 
@@ -218,6 +229,10 @@ void process_input(
     case 'D': 
         select->x++;
         select->x %= width;
+        break;
+    case 'm':
+    case 'M':
+        grid[select->y][select->x].marked = !grid[select->y][select->x].marked;
         break;
     case '\x0a':
         if (grid[select->y][select->x].is_mine) {
@@ -280,7 +295,6 @@ int main(void) {
         *(grid + i) = malloc(size * sizeof **grid);
     }
 
-    n_mines = 10;
     mines = malloc(n_mines * sizeof mines);
 
     do {
