@@ -173,6 +173,7 @@ void reveal_cell(
     short height,
     short x,
     short y,
+    struct cell *select,
     struct aes_buffer *buffer)
 {
     if (grid[y][x].revealed) {
@@ -185,20 +186,23 @@ void reveal_cell(
             grid[y][x].marked = false;
         }
 
+        draw_grid(grid, width, height, *select, buffer);
+        delay(1);
+
         if (grid[y][x].n_adj_mines > 0) {
             return;
         } else {
             if (y < height - 1) {
-                reveal_cell(grid, width, height, x, y + 1, buffer);
+                reveal_cell(grid, width, height, x, y + 1, select, buffer);
             }
             if (x < width - 1) {
-                reveal_cell(grid, width, height, x + 1, y, buffer);
+                reveal_cell(grid, width, height, x + 1, y, select, buffer);
             }
             if (y > 0) {
-                reveal_cell(grid, width, height, x, y - 1, buffer);
+                reveal_cell(grid, width, height, x, y - 1, select, buffer);
             }
             if (x > 0) {
-                reveal_cell(grid, width, height, x - 1, y, buffer);
+                reveal_cell(grid, width, height, x - 1, y, select, buffer);
             }
         }
     }
@@ -252,7 +256,7 @@ void process_input(
         if (grid[select->y][select->x].is_mine) {
             over = true;
         } else {
-            reveal_cell(grid, width, height, select->x, select->y, buffer);
+            reveal_cell(grid, width, height, select->x, select->y, select, buffer);
         }
         break;
     case '\x1b':
