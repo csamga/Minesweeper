@@ -24,7 +24,7 @@ static bool over;
 static bool win;
 static bool quit;
 static short empty;
-static struct aes_color_rgb colors[8] = {
+static struct aes_color_rgb digit_colors[8] = {
     {0, 0, 255},
     {0, 128, 0},
     {255, 0, 0},
@@ -139,7 +139,7 @@ void draw_grid(
                 } else {
                     if (c.n_adj_mines) {
                         p_reveal.c = '0' + c.n_adj_mines;
-                        p_reveal.fg = colors[c.n_adj_mines - 1];
+                        p_reveal.fg = digit_colors[c.n_adj_mines - 1];
                     } else {
                         p_reveal.c = ' ';
                         p_reveal.fg = white;
@@ -186,8 +186,8 @@ void reveal_cell(
             grid->cells[y][x].marked = false;
         }
 
-        draw_grid(grid, *select, buffer);
-        delay(1);
+        /* draw_grid(grid, *select, buffer);
+        delay(1); */
 
         if (grid->cells[y][x].n_adj_mines > 0) {
             return;
