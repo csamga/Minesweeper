@@ -224,6 +224,9 @@ void process_input(
     struct aes_buffer *buffer)
 {
     char c;
+    struct cell *selected;
+
+    selected = &grid[select->y][select->x];
 
     c = getchar();
 
@@ -250,7 +253,7 @@ void process_input(
         break;
     case 'm':
     case 'M':
-        grid[select->y][select->x].marked = !grid[select->y][select->x].marked;
+        selected->marked = !selected->revealed && !selected->marked;
         break;
     case '\x0a':
         if (grid[select->y][select->x].is_mine) {
