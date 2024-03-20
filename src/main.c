@@ -99,41 +99,45 @@ void draw_grid(
     struct aes_buffer *buffer)
 {
     struct cell c;
-    struct aes_pixel p_empty, p_mine, p_select, p_reveal;
-    struct aes_color_rgb black, light_grey, grey, white, red, green;
-    short w, h;
+    struct aes_pixel p_empty, p_mine, p_select, p_reveal, p_marked;
+    struct aes_color_rgb black, light_grey, grey, white, red;
+    short x, y;
 
     black = aes_make_color(0, 0, 0);
     grey = aes_make_color(192, 192, 192);
     light_grey = aes_make_color(223, 223, 223);
     white = aes_make_color(255, 255, 255);
     red = aes_make_color(255, 0, 0);
-    green = aes_make_color(0, 255, 0);
 
+    p_empty.c = ' ';
     p_empty.fg = white;
     p_empty.bg = light_grey;
 
     p_mine.c = '*';
-    p_mine.fg = white;
+    p_mine.fg = black;
 
     p_select.bg = white;
     p_select.fg = black;
 
     p_reveal.bg = grey;
 
-    for (h = 0; h < height; h++) {
-        for (w = 0; w < width; w++) {
-            c = grid[h][w];
+    p_marked.c = '!';
+    p_marked.fg = red;
+    p_marked.bg = light_grey;
+
+    for (y = 0; y < height; y++) {
+        for (x = 0; x < width; x++) {
+            c = grid[y][x];
 
             if (c.revealed) {
                 if (c.is_mine) {
-                    if (win) {
-                        p_mine.bg = green;
-                    } else {
+                    if (!win && select.x == x && select.y == y) {
                         p_mine.bg = red;
+                    } else {
+                        p_mine.bg = grey;
                     }
 
-                    aes_set_pixel(w, h, p_mine, buffer);
+                    aes_set_pixel(x, y, p_mine, buffer);
                 } else {
                     if (c.n_adj_mines) {
                         p_reveal.c = '0' + c.n_adj_mines;
@@ -143,22 +147,18 @@ void draw_grid(
                         p_reveal.fg = white;
                     }
 
-                    aes_set_pixel(w, h, p_reveal, buffer);
+                    aes_set_pixel(x, y, p_reveal, buffer);
                 }
+            } else if (c.marked) {
+                aes_set_pixel(x, y, p_marked, buffer);
             } else {
-                if (c.marked) {
-                    p_empty.c = '!';
-                } else {
-                    p_empty.c = ' ';
-                }
-
-                aes_set_pixel(w, h, p_empty, buffer);
+                aes_set_pixel(x, y, p_empty, buffer);
             }
 
-            if (w == select.x && h == select.y && !over) {
+            if (x == select.x && y == select.y && !over) {
                 p_select.c = buffer->pixels[width * select.y + select.x].c;
                 p_select.fg = buffer->pixels[width * select.y + select.x].fg;
-                aes_set_pixel(w, h, p_select, buffer);
+                aes_set_pixel(x, y, p_select, buffer);
             }
         }
     }
