@@ -13,6 +13,13 @@ struct cell {
     short x, y;
 };
 
+struct grid {
+    short width, height;
+    struct cell **cells;
+    short n_mines;
+    struct cell **mines;
+};
+
 static bool over;
 static bool win;
 static bool quit;
@@ -28,21 +35,14 @@ static struct aes_color_rgb colors[8] = {
     {128, 0, 128}
 };
 
-
-void init_grid(
-    struct cell *grid[],
-    short width,
-    short height,
-    short n_mines,
-    struct cell **mines)
-{
+void init_grid(struct grid *grid) {
     static bool seeded = false;
     short x, y, m, i, j, adj_x, adj_y;
     struct cell c;
     bool valid;
 
-    for (y = 0; y < height; y++) {
-        for (x = 0; x < width; x++) {
+    for (y = 0; y < grid->height; y++) {
+        for (x = 0; x < grid->width; x++) {
             c.is_mine = false;
             c.marked = false;
             c.revealed = false;
@@ -50,7 +50,7 @@ void init_grid(
             c.x = x;
             c.y = y;
 
-            grid[y][x] = c;
+            grid->cells[y][x] = c;
         }
     }
 
@@ -59,16 +59,16 @@ void init_grid(
         seeded = true;
     }
 
-    for (m = 0; m < n_mines; m++) {
+    for (m = 0; m < grid->n_mines; m++) {
         do {
-            x = rand() % width;
-            y = rand() % height;
+            x = rand() % grid->width;
+            y = rand() % grid->height;
 
-            valid = !grid[y][x].is_mine;
+            valid = !grid->cells[y][x].is_mine;
         } while (!valid);
 
-        grid[y][x].is_mine = true;
-        mines[m] = &grid[y][x];
+        grid->cells[y][x].is_mine = true;
+        grid->mines[m] = &grid->cells[y][x];
 
         for (i = -1; i <= 1; i++) {
             adj_x = x + i;
@@ -77,13 +77,13 @@ void init_grid(
                 adj_y = y + j;
 
                 if (adj_x >= 0 &&
-                    adj_x < width &&
+                    adj_x < grid->width &&
                     adj_y >= 0 &&
-                    adj_y < height &&
+                    adj_y < grid->height &&
                     (i != 0 || j != 0))
                 {
-                    if (!grid[adj_y][adj_x].is_mine) {
-                        grid[adj_y][adj_x].n_adj_mines++;
+                    if (!grid->cells[adj_y][adj_x].is_mine) {
+                        grid->cells[adj_y][adj_x].n_adj_mines++;
                     }
                 }
             }
@@ -92,9 +92,7 @@ void init_grid(
 }
 
 void draw_grid(
-    struct cell **grid,
-    short width,
-    short height,
+    struct grid *grid,
     struct cell select,
     struct aes_buffer *buffer)
 {
@@ -125,9 +123,9 @@ void draw_grid(
     p_marked.fg = red;
     p_marked.bg = light_grey;
 
-    for (y = 0; y < height; y++) {
-        for (x = 0; x < width; x++) {
-            c = grid[y][x];
+    for (y = 0; y < grid->height; y++) {
+        for (x = 0; x < grid->width; x++) {
+            c = grid->cells[y][x];
 
             if (c.revealed) {
                 if (c.is_mine) {
@@ -156,8 +154,12 @@ void draw_grid(
             }
 
             if (x == select.x && y == select.y && !over) {
-                p_select.c = buffer->pixels[width * select.y + select.x].c;
-                p_select.fg = buffer->pixels[width * select.y + select.x].fg;
+                p_select.c = buffer->pixels[
+                    grid->width * select.y + select.x
+                ].c;
+                p_select.fg = buffer->pixels[
+                    grid->width * select.y + select.x
+                ].fg;
                 aes_set_pixel(x, y, p_select, buffer);
             }
         }
@@ -168,41 +170,39 @@ void draw_grid(
 }
 
 void reveal_cell(
-    struct cell **grid,
-    short width,
-    short height,
+    struct grid *grid,
     short x,
     short y,
     struct cell *select,
     struct aes_buffer *buffer)
 {
-    if (grid[y][x].revealed) {
+    if (grid->cells[y][x].revealed) {
         return;
     } else {
-        grid[y][x].revealed = true;
+        grid->cells[y][x].revealed = true;
         empty--;
 
-        if (grid[y][x].marked) {
-            grid[y][x].marked = false;
+        if (grid->cells[y][x].marked) {
+            grid->cells[y][x].marked = false;
         }
 
-        draw_grid(grid, width, height, *select, buffer);
+        draw_grid(grid, *select, buffer);
         delay(1);
 
-        if (grid[y][x].n_adj_mines > 0) {
+        if (grid->cells[y][x].n_adj_mines > 0) {
             return;
         } else {
-            if (y < height - 1) {
-                reveal_cell(grid, width, height, x, y + 1, select, buffer);
+            if (y < grid->height - 1) {
+                reveal_cell(grid, x, y + 1, select, buffer);
             }
-            if (x < width - 1) {
-                reveal_cell(grid, width, height, x + 1, y, select, buffer);
+            if (x < grid->width - 1) {
+                reveal_cell(grid, x + 1, y, select, buffer);
             }
             if (y > 0) {
-                reveal_cell(grid, width, height, x, y - 1, select, buffer);
+                reveal_cell(grid, x, y - 1, select, buffer);
             }
             if (x > 0) {
-                reveal_cell(grid, width, height, x - 1, y, select, buffer);
+                reveal_cell(grid, x - 1, y, select, buffer);
             }
         }
     }
@@ -217,16 +217,14 @@ void reveal_mines(struct cell **mines, short n_mines) {
 }
 
 void process_input(
-    struct cell **grid,
+    struct grid *grid,
     struct cell *select,
-    short width,
-    short height,
     struct aes_buffer *buffer)
 {
     char c;
     struct cell *selected;
 
-    selected = &grid[select->y][select->x];
+    selected = &grid->cells[select->y][select->x];
 
     c = getchar();
 
@@ -234,32 +232,32 @@ void process_input(
     case 'z':
     case 'Z':
         select->y++;
-        select->y %= height;
+        select->y %= grid->height;
         break;
     case 's':
     case 'S':
         select->y--;
-        select->y += height * (select->y < 0);
+        select->y += grid->height * (select->y < 0);
         break;
     case 'q':
     case 'Q':
         select->x--;
-        select->x += width * (select->x < 0);
+        select->x += grid->width * (select->x < 0);
         break;
     case 'd':
     case 'D': 
         select->x++;
-        select->x %= width;
+        select->x %= grid->width;
         break;
     case 'm':
     case 'M':
         selected->marked = !selected->revealed && !selected->marked;
         break;
     case '\x0a':
-        if (grid[select->y][select->x].is_mine) {
+        if (selected->is_mine) {
             over = true;
         } else {
-            reveal_cell(grid, width, height, select->x, select->y, select, buffer);
+            reveal_cell(grid, select->x, select->y, select, buffer);
         }
         break;
     case '\x1b':
@@ -269,9 +267,10 @@ void process_input(
 }
 
 int main(void) {
-    struct cell **grid, select, **mines;
+    struct grid grid;
+    struct cell select;
     struct aes_buffer *buffer;
-    short i, n_mines, size;
+    short i;
     char c;
 
     puts("Choose difficulty :");
@@ -283,20 +282,24 @@ int main(void) {
 
     switch (c) {
     case '1':
-        size = 8;
-        n_mines = 10;
+        grid.width = 8;
+        grid.height = 8;
+        grid.n_mines = 10;
         break;
     case '2':
-        size = 16;
-        n_mines = 40;
+        grid.width = 16;
+        grid.height = 16;
+        grid.n_mines = 40;
         break;
     case '3':
-        size = 32;
-        n_mines = 100;
+        grid.width = 32;
+        grid.height = 32;
+        grid.n_mines = 100;
         break;
     default:
-        size = 16;
-        n_mines = 40;
+        grid.width = 16;
+        grid.height = 16;
+        grid.n_mines = 40;
     };
 
     getchar();
@@ -308,27 +311,27 @@ int main(void) {
         AES_SWITCH_BUFFERS
     );
 
-    buffer = aes_buffer_alloc(size, size, true);
+    buffer = aes_buffer_alloc(grid.width, grid.height, true);
 
-    grid = malloc(size * sizeof grid);
+    grid.cells = malloc(grid.height * sizeof grid.cells);
 
-    for (i = 0; i < size; i++) {
-        *(grid + i) = malloc(size * sizeof **grid);
+    for (i = 0; i < grid.height; i++) {
+        grid.cells[i] = malloc(grid.width * sizeof **(grid.cells));
     }
 
-    mines = malloc(n_mines * sizeof mines);
+    grid.mines = malloc(grid.n_mines * sizeof grid.mines);
 
     do {
-        init_grid(grid, size, size, n_mines, mines);
-        select = grid[0][0];
+        init_grid(&grid);
+        select = grid.cells[0][0];
 
-        empty = size * size - n_mines;
+        empty = grid.width * grid.height - grid.n_mines;
         over = false;
         win = false;
 
         while (!over && !win && !quit) {
-            draw_grid(grid, size, size, select, buffer);
-            process_input(grid, &select, size, size, buffer);
+            draw_grid(&grid, select, buffer);
+            process_input(&grid, &select, buffer);
 
             if (empty == 0) {
                 win = true;
@@ -336,8 +339,8 @@ int main(void) {
         }
 
         if (!quit) {
-            reveal_mines(mines, n_mines);
-            draw_grid(grid, size, size, select, buffer);
+            reveal_mines(grid.mines, grid.n_mines);
+            draw_grid(&grid, select, buffer);
 
             if (win) {
                 puts("you won");
@@ -365,12 +368,12 @@ int main(void) {
         aes_clear_screen();
     } while (!quit);
 
-    for (i = 0; i < size; i++) {
-        free(*(grid + i));
+    for (i = 0; i < grid.height; i++) {
+        free(grid.cells[i]);
     }
 
-    free(grid);
-    free(mines);
+    free(grid.cells);
+    free(grid.mines);
     aes_buffer_free(buffer);
 
     aes_term_reset();
